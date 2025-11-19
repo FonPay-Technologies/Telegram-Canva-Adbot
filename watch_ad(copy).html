@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Watch Ads</title>
+
+  <!-- LibTL Ad Network SDK (zone 10089898) -->
+  <script src="//libtl.com/sdk.js" data-zone="10089898" data-sdk="show_10089898"></script>
+
+  <style>
+    :root{
+      --dark:#1f1f1f;
+      --panel:#262626;
+      --accent:#00c4b4;
+      --green:#118a1a;
+      --rounded:18px;
+    }
+    body{
+      margin:0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #0b0b0b;
+      color:#fff;
+      display:flex;
+      justify-content:center;
+      padding:28px 12px;
+    }
+    .container{
+      width:100%;
+      max-width:420px;
+      background:linear-gradient(90deg,#6b00ff,#00c2ff);
+      border-radius:14px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.6);
+      overflow:hidden;
+    }
+    .content{
+      background:#151515;
+      padding:24px;
+    }
+    .title{
+      color:#fff;
+      padding:18px;
+      font-size:22px;
+      font-weight:700;
+      text-align:center;
+    }
+    .subtitle{
+      color:#e6f7ff;
+      text-align:center;
+      font-size:13px;
+      margin-bottom:18px;
+    }
+
+    /* Steps bar */
+    .steps{
+      display:flex;
+      gap:6px;
+      margin:18px auto;
+      width:90%;
+      justify-content:center;
+      border-radius:999px;
+      overflow:hidden;
+      background:#222;
+      padding:6px;
+    }
+    .step{
+      flex:1;
+      text-align:center;
+      padding:10px 6px;
+      font-weight:700;
+      color:#fff;
+      font-size:14px;
+      border-radius:6px;
+      opacity:0.35;
+      transition:all .18s;
+    }
+    .step.done{ opacity:1; transform:translateY(-4px); box-shadow:0 6px 18px rgba(0,0,0,0.5); }
+    .step.s1{ background:#e42323; }   /* red */
+    .step.s2{ background:#f2a400; }   /* orange */
+    .step.s3{ background:#28b62c; }   /* green */
+    .step.s4{ background:#8e46ff; }   /* purple */
+    .step.s5{ background:#2cb6ff; }   /* blue */
+
+    /* Gift button */
+    .gift{
+      display:block;
+      width:100%;
+      background:#1f8b2b;
+      color:#fff;
+      padding:18px;
+      border-radius:18px;
+      text-align:center;
+      font-size:20px;
+      font-weight:800;
+      margin:18px 0;
+      cursor:pointer;
+      text-decoration:none;
+      box-shadow:0 10px 20px rgba(0,0,0,0.4);
+      opacity:0.5;
+      pointer-events:none;
+      transition:all .18s;
+    }
+    .gift.unlocked{ opacity:1; pointer-events:auto; }
+
+    /* Link box */
+    .link-box{
+      background:#2b2b2b;
+      border-radius:12px;
+      padding:14px;
+      margin:12px 0;
+      color:#cfeff0;
+      font-size:14px;
+    }
+    .copy-btn{
+      margin-top:10px;
+      display:inline-block;
+      background:var(--accent);
+      color:#042;
+      padding:10px 14px;
+      border-radius:8px;
+      font-weight:700;
+      cursor:pointer;
+      text-decoration:none;
+    }
+
+    /* Purple buttons */
+    .purple-btn{
+      width:100%;
+      display:block;
+      background:#6b00ff;
+      color:#fff;
+      padding:14px;
+      margin:12px 0;
+      border-radius:12px;
+      text-align:center;
+      font-weight:800;
+      text-decoration:none;
+    }
+
+    .footer{
+      text-align:center; color:#86f6e7; padding:10px 0; font-weight:600;
+    }
+
+    /* Small message */
+    .msg{
+      text-align:center;
+      font-size:14px;
+      margin-top:8px;
+      min-height:22px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">Canva Pro Team</div>
+    <div class="subtitle">🔔 After watching {{ total }} ads, the Canva Pro button will be unlocked. Then click again to open Canva Pro.</div>
+
+    <div class="content">
+      <!-- Steps -->
+      <div class="steps" id="steps">
+  {% for i in range(1, total + 1) %}
+    <div class="step s{{ i }}" id="step{{ i }}">Step {{ i }}</div>
+  {% endfor %}
+</div>
+
+
+      <!-- Gift button -->
+      <a id="giftBtn" class="gift">🎉 Click to Open Canva Pro</a>
+
+      <!-- Link box (shows exact url and copy) -->
+      <div class="link-box">
+        <div style="font-weight:800; margin-bottom:8px; text-align:center;">🌐 Copy link and paste it in your browser:</div>
+        <div style="background:#0e0e0e;padding:10px;border-radius:8px; font-family:monospace; color:#1bd6c9; text-align:center;" id="giftUrlBox">Locked until {{ total }} Ads watched</div>
+        <div style="text-align:center;">
+          <button class="copy-btn" id="copyBtn">📋 Copy Canva Pro Link</button>
+        </div>
+      </div>
+
+      <!-- Channel / Premium -->
+      <a id="joinChannel" class="purple-btn" target="_blank">Join Channel</a>
+      <a id="premium" class="purple-btn" target="_blank">Premium Apps</a>
+
+      <div class="msg" id="msg"></div>
+      <div class="footer">by Alex</div>
+    </div>
+  </div>
+
+<script>
+/*
+  Expected query params provided by bot:
+   - user_id
+   - token
+   - callback (server callback endpoint)
+  Behavior:
+   - Each successful ad watch will POST {user_id, token, result:'ad_completed'} to callback
+   - Server responds with JSON: {status:'ok', count: n, unlocked: true/false, gift_url?: '...' }
+*/
+
+const params = new URLSearchParams(window.location.search);
+const callback = params.get('callback');   // e.g. https://yourserver.com/ad_callback
+const user_id = params.get('user_id');
+const token = params.get('token');
+
+const giftUrlProvided = "https://www.canva.com/brand/join?token=BrnBqEuFTwf7IgNrKWfy4A&br";  // your gift url (as provided)
+const channelLink = "https://t.me/gsf8mqOl0atkMTM0"; // your channel
+const premiumLink = "#"; // replace with your premium apps link if any
+
+const giftBtn = document.getElementById('giftBtn');
+const giftUrlBox = document.getElementById('giftUrlBox');
+const copyBtn = document.getElementById('copyBtn');
+const joinChannel = document.getElementById('joinChannel');
+const premium = document.getElementById('premium');
+const msg = document.getElementById('msg');
+
+joinChannel.href = channelLink;
+premium.href = premiumLink;
+giftUrlBox.textContent = `Locked until {{ total }} ads watched`;
+
+let steps = [
+  document.getElementById('step1'),
+  document.getElementById('step2'),
+  document.getElementById('step3'),
+  document.getElementById('step4'),
+  document.getElementById('step5')
+];
+
+// update UI from server on load (optional)
+function updateUI(count, unlocked, gift_url){
+  for(let i=0;i<{{ total }};i++){ ... }
+    if(i < count){
+      steps[i].classList.add('done');
+    } else {
+      steps[i].classList.remove('done');
+    }
+  }
+  if(unlocked){
+    giftBtn.classList.add('unlocked');
+    giftUrlBox.textContent = gift_url || giftUrlProvided;
+  } else {
+    giftBtn.classList.remove('unlocked');
+    giftUrlBox.textContent = `Locked until {{ total }} ads watched`;
+  }
+}
+
+// called when ad completes locally (after network / ad sdk confirmed)
+function notifyServerAdCompleted(){
+  if(!callback || !user_id || !token){
+    showMsg("Missing data. Please open from the bot.");
+    return;
+  }
+  fetch(callback, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ user_id: user_id, token: token, result: 'ad_completed' })
+  })
+  .then(r => r.json())
+  .then(j => {
+    if(j && j.status === 'ok'){
+      const c = j.count || 0;
+      const unlocked = !!j.unlocked;
+      updateUI(c, unlocked, j.gift_url);
+      showMsg("✅ Ad counted. Progress: " + c + "/{{ total }}");
+    } else {
+      showMsg("⚠️ Server error: " + (j.message || "unknown"));
+    }
+  })
+  .catch(e => showMsg("⚠️ Network error."));
+}
+
+// Small helper for messages
+function showMsg(t){
+  msg.textContent = t;
+  setTimeout(()=>{ msg.textContent = ''; }, 3500);
+}
+
+// Copy button
+copyBtn.addEventListener('click', ()=> {
+  const text = giftUrlBox.textContent;
+  if(!text || text.includes('Locked')) { showMsg("🔒 Gift locked. Watch ads first."); return; }
+  navigator.clipboard.writeText(text).then(()=> showMsg("✅ Link copied to clipboard."));
+});
+
+// Gift button click: if unlocked open link; if locked prompt to watch ad
+giftBtn.addEventListener('click', (e)=>{
+  if(!giftBtn.classList.contains('unlocked')){
+    showMsg("🔒 Watch {{ total }} ads to unlock the gift.");
+    return;
+  }
+  // open gift url in new tab
+  const url = giftUrlBox.textContent || giftUrlProvided;
+  window.open(url, '_blank');
+});
+
+// ----- Ad SDK integration -----
+// Replace the pseudo flow below with your SDK's actual function. For LibTL with zone 10089898
+// the SDK included at top exposes a promise-style function show_10089898() in earlier examples.
+// We'll attempt to call it; otherwise we simulate ad for demo.
+
+function watchAd(){
+  showMsg("Opening ad...");
+  if(typeof show_10089898 === 'function'){
+    // real ad call (SDK should return a Promise that resolves on completion)
+    try {
+      show_10089898().then(()=>{
+        showMsg("Ad completed.");
+        notifyServerAdCompleted();
+      }).catch(()=> {
+        showMsg("Ad failed to play.");
+      });
+    } catch(err){
+      // SDK might not return a Promise, handle gracefully:
+      showMsg("Ad SDK error.");
+    }
+  } else {
+    // Simulation fallback for testing (remove in production)
+    showMsg("Simulating ad (3s) ...");
+    setTimeout(()=>{
+      showMsg("Ad completed (simulated).");
+      notifyServerAdCompleted();
+    }, 3000);
+  }
+}
+
+// For UX: clicking any step allows you to watch next ad
+steps.forEach((s, idx)=>{
+  s.style.cursor = 'pointer';
+  s.addEventListener('click', ()=> { watchAd(); });
+});
+
+// Also allow clicking on the big gift area to prompt watching when locked
+giftBtn.addEventListener('dblclick', ()=> watchAd()); // double click to watch ad quickly
+
+// On load: get current status from server (optional)
+function init(){
+  if(!callback || !user_id || !token) {
+    showMsg("Open this page via the bot to enable rewards.");
+    return;
+  }
+  fetch(callback + "/status", {   // server should support GET /ad_callback/status or similar (we implement /status)
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ user_id: user_id, token: token })
+  })
+  .then(r => r.json())
+  .then(j => {
+    if(j && j.status === 'ok'){
+      updateUI(j.count || 0, !!j.unlocked, j.gift_url);
+    }
+  })
+  .catch(()=>{/* ignore */});
+}
+
+init();
+</script>
+</body>
+</html>

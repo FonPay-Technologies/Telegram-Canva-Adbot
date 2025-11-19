@@ -1,1 +1,7 @@
-404: Not Found
+pytelegrambotapi==4.24.0
+Flask==3.0.3
+requests
+pymongo
+dnspython
+python-dotenv
+gunicorn
